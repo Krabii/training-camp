@@ -1,7 +1,8 @@
 import streamlit as st
 
+
 st.set_page_config(
-    page_title="Configuracion",
+    page_title="Training Facility",
     page_icon=":house:",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -17,3 +18,6 @@ st.write(
 
 st.sidebar.header("Home Page")
 
+if st.sidebar.button("Init DB"):
+    from db import create_db
+    create_db()
