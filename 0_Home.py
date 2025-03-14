@@ -2,8 +2,8 @@ import streamlit as st
 
 
 st.set_page_config(
-    page_title="Training Facility",
-    page_icon=":house:",
+    page_title="TimeTabling Made Easy",
+    page_icon=":calendar:",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
@@ -11,12 +11,12 @@ st.set_page_config(
     }
 )
 
-st.title("Traning Facility Scheduler :soccer:")
+st.title(":house: Timetabling for Education/Sport Venues")
 st.write(
-    "Weekly planner :calendar: for scheduling training sessions in a soccer training facility."
+    "Timetabling for Educational and Sporting Centers. Get Optimal Timetables that meet your preferences and goals."
 )
 
-st.sidebar.header("Home Page")
+st.sidebar.header("Home")
 
 if st.sidebar.button("Init DB"):
     from db import create_db

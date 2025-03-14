@@ -1,36 +1,46 @@
 from sqlmodel import Field, SQLModel, create_engine, Session, select
-from models import metadata, Coach, Team, Facility
+from models import metadata, Instructor, Group, Activity, Venue
 import pandas as pd 
+from sqlalchemy import event
+
 
 sqlite_file_name = "/tmp/db.sqlite"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 
-engine = create_engine(sqlite_url, echo=True)
+engine = create_engine(sqlite_url, echo=True, connect_args={"check_same_thread": False})
+
+
+# Ensure foreign key enforcement
+@event.listens_for(engine, "connect")
+def enforce_foreign_keys(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON;")
+    cursor.close()
 
 
 def create_db():
     SQLModel.metadata.create_all(engine)
     # Check and insert default records if tables are empty
     with Session(engine) as session:
-        # Check if 'Coach' table is empty
-        if not session.execute(select(Coach)).scalars().first():
-            # Insert default coach
-            default_coach = Coach(name="Default Coach")
-            session.add(default_coach)
+        # Check if 'Instructor' table is empty
+        if not session.execute(select(Instructor)).scalars().first():
+            # Insert default instructor
+            default_instructor = Instructor(name="Default Instructor")
+            session.add(default_instructor)
             session.commit()
 
-        # Check if 'Facility' table is empty
-        if not session.execute(select(Facility)).scalars().first():
-            # Insert default facility
-            default_facility = Facility(name="Default Facility", floor_type="real")
-            session.add(default_facility)
+        # Check if 'Venue' table is empty
+        if not session.execute(select(Venue)).scalars().first():
+            # Insert default venue
+            default_venue = Venue(name="Default Venue", floor_type="real")
+            session.add(default_venue)
             session.commit()
 
-        # Check if 'Team' table is empty
-        if not session.execute(select(Team)).scalars().first():
-            # Insert default team (coach_id set to 1 as Default Coach)
-            default_team = Team(name="Default Team", gender="M", age_group=18, coach_id=1)
-            session.add(default_team)
+        # Check if 'Group' table is empty
+        if not session.execute(select(Group)).scalars().first():
+            # Insert default group (instructor_id set to 1 as Default Instructor)
+            default_group = Group(name="Default Group", gender="M", age_group=18, instructor_id=1)
+            session.add(default_group)
             session.commit()
 
 # 🚀 Get Database Session
