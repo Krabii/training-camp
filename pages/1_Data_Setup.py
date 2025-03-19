@@ -26,12 +26,12 @@ if "error_toast" in st.session_state and st.session_state.success_toast:
     st.toast(":x: Error: Cannot delete row(s) due to existing references. Remove related records first.")
 
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Groups", "Instructors", "Venues", "Tags", "Activities"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Groups", "Instructors", "Venues", "Activities", "Tags"])
 
 with tab1:
 
     st.title("Manage Groups")
-
+    st.write("Define your group of students or class participants. Whether it's \"Grade 10 Science Class\" or \"U14 Soccer Team,\" organizing your groups helps the system understand who needs to be scheduled together. The optimization process will then handle the best timing and resource allocation for each group.")
     # Fetch Instructores
     with get_session() as session:
         instructores = session.exec(select(Instructor)).all()
@@ -131,6 +131,7 @@ with tab1:
 
 with tab2:
     st.title("Manage Instructores")
+    st.write("Specify the available instructors for each type of activity. For example, a math teacher for an algebra class or a fitness coach for a spinning session. While you can pin certain assignments if needed, the system will automatically match instructors to activities in the most efficient way.")
 
     # 📌 Display and Edit Instructores
     df = fetch_data(Instructor)
@@ -192,6 +193,8 @@ with tab2:
 with tab3:
 
     st.title("Venues")
+    st.write("Indicate the venues where activities can take place, such as a lecture hall, a laboratory, or a basketball court. The optimization engine will then select the best location and time slot based on availability and requirements, minimizing conflicts and maximizing resource use.")
+
     df = fetch_data(Venue)
     df["Delete"] = False  # Add a delete column (checkboxes)
     edited_df = st.data_editor(
@@ -243,7 +246,7 @@ with tab3:
     if st.button("Add New Venue"):
         add_venue_form()
 
-with tab4:
+with tab5:
     st.title("Tags")
 
     st.write("Use Tags to label either Groups, Instructors, Venues or Activities. You can later create complex rules for your Timetable based on tags.")
@@ -298,9 +301,9 @@ with tab4:
     if st.button("Add New Tag"):
         add_tag_form()
 
-with tab5:
+with tab4:
     st.write("### Manage Activities")
-
+    st.write("Create the list of activities, like \"Physics Lecture,\" \"Yoga Class,\" or \"Soccer Practice.\" While you can set certain constraints or preferences, the system will intelligently assign the right time, instructor, and venue to build the most efficient timetable.")
     # 📌 Display and Edit Instructores
     df = fetch_data(Activity)
     df["Delete"] = False

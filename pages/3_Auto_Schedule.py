@@ -12,7 +12,7 @@ st.set_page_config(
     }
 )
 
-st.title(":calendar: Schedule Activitys")
+st.title(":calendar: Schedule Activities")
 
 # Date Range Selection
 date_range = st.date_input("Select a date range", [], format="YYYY-MM-DD")

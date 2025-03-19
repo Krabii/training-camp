@@ -75,7 +75,6 @@ class Tag(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(...)
 
-
     facilities: list[Venue] = Relationship(back_populates="tags", link_model=VenueTagLink)
 
 
