@@ -1,12 +1,15 @@
 from enum import Enum
-from sqlmodel import Field, Session, SQLModel, Relationship, MetaData, Column
+from sqlmodel import Field, Session, SQLModel, Relationship, MetaData, Column, ForeignKey
 from datetime import time, datetime, date
 from sqlalchemy import JSON
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 
 metadata = MetaData()  # Define a single metadata instance
 
+
+# Sets and Enums, non DB
+# --------------
 
 class Priority(str, Enum):
     MANDATORY = 'mandatory'
@@ -28,14 +31,45 @@ class Day(str, Enum):
     ALL = "all"
 
 
+class DayPlanningTimePeriod(SQLModel, table=True):
+    __tablename__ = "day_planning_time_period"
+    __table_args__ = {"extend_existing": True}  # Prevent duplicate table errors
+
+    id: int | None = Field(default=None, primary_key=True)
+    day: Day = Field(..., unique=True)
+    opening_time: time
+    closing_time: time
+ 
+
+# Tagging system: Polymorphic Tag any of the main entities
+# --------------------------------------------------------
+
+class TagLink(SQLModel, table=True):
+    __tablename__ = "tag_link"
+    __table_args__ = {"extend_existing": True}  # Prevent duplicate table errors
+    
+    tag_id: int = Field(ForeignKey("tag.id"), primary_key=True)
+    entity_id: int | None = Field(default=None, primary_key=True)  # ID of Venue, Group, or Instructor
+    entity_type: str = Field(default=None, primary_key=True)  # e.g., "venue", "group", "instructor"
+
+
+class Tag(SQLModel, table=True):
+    __tablename__ = "tag"
+    __table_args__ = {"extend_existing": True}  # Prevent duplicate table errors
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(...)
+
+
+# Base Entities, Group, Instructor, Venue, Activity
+# -------------------------------------------------
+
 class Instructor(SQLModel, table=True):
     __tablename__ = "instructor"
     __table_args__ = {"extend_existing": True}  # Prevent duplicate table errors
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
-
-    groups: list["Group"] = Relationship(back_populates="instructor")
 
 
 class Group(SQLModel, table=True):
@@ -47,15 +81,8 @@ class Group(SQLModel, table=True):
     gender: str = Field(default="M")
     age_group: int
 
-    instructor_id: int | None = Field(default=None, foreign_key="instructor.id", nullable=False)
-    instructor: Instructor | None = Relationship(back_populates="groups")
-
-
-class VenueTagLink(SQLModel, table=True):
-    __table_args__ = {"extend_existing": True}  # Prevent duplicate table errors
-
-    venue_id: int | None = Field(default=None, foreign_key="venue.id", primary_key=True, nullable=False)
-    tag_id: int | None = Field(default=None, foreign_key="tag.id", primary_key=True, nullable=False)
+    # Relationship to Activities
+    activities: List["Activity"] = Relationship(back_populates="group")
 
 
 class Venue(SQLModel, table=True):
@@ -64,18 +91,6 @@ class Venue(SQLModel, table=True):
     
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
-    
-    tags: list["Tag"] = Relationship(back_populates="facilities", link_model=VenueTagLink)
-
-
-class Tag(SQLModel, table=True):
-    __tablename__ = "tag"
-    __table_args__ = {"extend_existing": True}  # Prevent duplicate table errors
-
-    id: int | None = Field(default=None, primary_key=True)
-    name: str = Field(...)
-
-    facilities: list[Venue] = Relationship(back_populates="tags", link_model=VenueTagLink)
 
 
 class Activity(SQLModel, table=True):
@@ -87,30 +102,30 @@ class Activity(SQLModel, table=True):
     description: str = Field(...)
     duration_minutes: int = Field(...)
 
+    group_id: int = Field(foreign_key="group.id")  # Foreign Key Reference
+    
+    # Relationship to Group
+    group: Optional[Group] = Relationship(back_populates="activities")
 
-class ActivityInstructor(SQLModel, table=True):
-    __tablename__ = "activity_instructor"
-    __table_args__ = {"extend_existing": True}
 
-    activity_id: int | None = Field(default=None, foreign_key="activity.id", primary_key=True, nullable=False)
-    instructor_id: int | None = Field(default=None, foreign_key="instructor.id", primary_key=True, nullable=False)
-    priority: Priority = Field(default=Priority.HIGH)
-
+# RESTRICTION & RULES
+# -------------------
 
 class ActivityRestriction(SQLModel):
     """
-    Only onee can be set.
+    Only one can be set.
     """
 
-    earliest_start: time = None  # Activity earliest starting time
-    latest_start: time = None  # Activity latest starting time
-    earliest_end: time = None  # Activity earliest end time
-    latest_end: time = None  # Activity latest end time
-    on_day: Day = None  # Activity will be programed on this day according to the priority provided
-    not_on_day: Day = None  # Avoid programming on this day according to the priority provided
-    tag_id: int = None  # The Venue assigned should have this Tag. Use Priority accordingly
+    earliest_start: Dict[Day, time] = None  # Activity earliest starting time
+    latest_start: Dict[Day, time] = None  # Activity latest starting time
+    earliest_end: Dict[Day, time] = None  # Activity earliest end time
+    latest_end: Dict[Day, time] = None  # Activity latest end time
+    on_day: List[Day] = None  # Activity can be programed on this day according to the priority provided
+    not_on_day: List[Day] = None  # Avoid programming on this day according to the priority provided
+    tag: Dict[str, int] = None  # The Entity assigned should have this Tag. Use Priority accordingly
     instructor_id: int = None  # The Instructor assigned should be this one. Use Priority accordingly
     venue_id: int = None  # Activity Should be assigned on this venue. Use Priority accordingly
+    group_id: int = None  # Group Should be assigned this activity. Use Priority accordingly
 
 
 class Restriction(SQLModel, table=True):

@@ -33,20 +33,14 @@ with tab1:
     st.title("Manage Groups")
     st.write("Define your group of students or class participants. Whether it's \"Grade 10 Science Class\" or \"U14 Soccer Team,\" organizing your groups helps the system understand who needs to be scheduled together. The optimization process will then handle the best timing and resource allocation for each group.")
     # Fetch Instructores
-    with get_session() as session:
-        instructores = session.exec(select(Instructor)).all()
-    instructor_options = {instructor.id: instructor.name for instructor in instructores}
-
+    
     # 🚀 Fetch Groups Data with Instructor Dropdown
     def fetch_groups():
         with get_session() as session:
             groups = session.exec(select(Group)).all()
-            instructores = {instructor.id: instructor.name for instructor in session.exec(select(Instructor)).all()}  # Map ID -> Name
 
             df = pd.DataFrame([row.model_dump() for row in groups])
-            df["instructor_id"] = df["instructor_id"].map(instructores)  # Convert ID -> Name
-            df.rename(columns={"instructor_id": "instructor_name"}, inplace=True)  # Rename column
-            return df[["id", "name", "gender", "age_group", "instructor_name"]]  # Ensure order
+            return df[["id", "name", "gender", "age_group"]]  # Ensure order
 
 
     # Fetch Group Data
@@ -56,11 +50,6 @@ with tab1:
         df_group,
         column_config={
             "name": "Name",
-            "instructor_name": st.column_config.SelectboxColumn(
-                "Instructor",
-                options=list(instructor_options.values()),  # List of Instructor Names
-                help="Select the instructor for this group",
-            ),
             "age_group": st.column_config.NumberColumn(
                 "Age",
                 min_value=4,
@@ -77,21 +66,17 @@ with tab1:
         hide_index=True,
         # num_rows="dynamic",
         key="group_editor",
-        column_order=['name', 'instructor_name', 'age', 'gender', 'Delete']
+        column_order=['name', 'age', 'gender', 'Delete']
     )
 
     # 📌 Save Changes
     if st.button("Update Groups"):
         with get_session() as session:
             for index, row in edited_df.iterrows():
-                # Convert instructor name back to ID for saving
-                instructor_id = {v: k for k, v in instructor_options.items()}[row["instructor_name"]]
-                
                 group = session.exec(select(Group).where(Group.id == row["id"])).first()
                 group.name = row["name"]
                 group.gender = row["gender"]
                 group.age_group = row["age_group"]
-                group.instructor_id = instructor_id  # Save correct ID
                 session.commit()
         st.session_state.success_toast = True  # Set flag to show toast after rerun
         st.rerun()  # Force rerun
@@ -115,12 +100,11 @@ with tab1:
             name = st.text_input("Group Name")
             gender = st.selectbox("Gender", ["M", "F", "MIXED"])
             age_group = st.number_input("Age Group", min_value=0, max_value=100)
-            instructor_id = st.selectbox("Instructor", list(instructor_options.keys()), format_func=lambda x: instructor_options[x])
 
             submitted = st.form_submit_button("Add Group")
             if submitted and name:
                 with get_session() as session:
-                    session.add(Group(name=name, gender=gender, age_group=age_group, instructor_id=instructor_id))
+                    session.add(Group(name=name, gender=gender, age_group=age_group))
                     session.commit()
                 st.session_state.success_toast = True  # Set flag to show toast after rerun
                 st.rerun()  # Force rerun
@@ -302,30 +286,52 @@ with tab5:
         add_tag_form()
 
 with tab4:
+
+    # 📌 Fetch Group Options
+    def get_group_options():
+        with get_session() as session:
+            groups = session.exec(select(Group)).all()
+            return {group.name: group.id for group in groups}  # Dictionary {name: id}
+
+    # 🔹 Load groups
+    group_options = get_group_options()
+
+
     st.write("### Manage Activities")
     st.write("Create the list of activities, like \"Physics Lecture,\" \"Yoga Class,\" or \"Soccer Practice.\" While you can set certain constraints or preferences, the system will intelligently assign the right time, instructor, and venue to build the most efficient timetable.")
     # 📌 Display and Edit Instructores
     df = fetch_data(Activity)
     df["Delete"] = False
+    if not df.empty:
+        df["Group"] = df["group_id"].map({v: k for k, v in group_options.items()})  # Convert group_id → group name
+    else:
+        df["Group"] = ""  # Set an empty column if there's no data
+
     edited_df = st.data_editor(
         df,
         key="activity_editor",
         disabled=["id"],
         hide_index=True,
         column_config={
-            'name': "Name"
+            'name': "Name",
+            'duration_minutes': "Duration (min)",
+            'Group': "Group"
         },
-        column_order=['description', 'duration_minutes', "Delete"]
+        column_order=['description', 'duration_minutes', 'Group', "Delete"]
     )
 
     # 📌 Save Changes
     if st.button("Update Activities"):
         with get_session() as session:
             for index, row in edited_df.iterrows():
-                session.exec(
+                activity = session.exec(
                     select(Activity)
                     .where(Activity.id == row["id"])
-                ).first().description = row["description"]
+                ).first()
+                if activity:
+                    activity.description = row["description"]
+                    activity.duration_minutes = row["duration_minutes"]
+                    activity.group_id = group_options.get(row["Group"])
             session.commit()
         st.session_state.success_toast = True  # Set flag to show toast after rerun
         st.rerun()  # Force rerun
@@ -348,10 +354,11 @@ with tab4:
         with st.form("add_activity"):
             description = st.text_input("Activity Description")
             dur = st.number_input("Activity Duration (minutes)", min_value=0, step=5, format="%d")
+            selected_group = st.selectbox("Select Group", options=group_options.keys())  # Show group names
             submitted = st.form_submit_button("Add Activity")
             if submitted and description:
                 with get_session() as session:
-                    session.add(Activity(description=description, duration_minutes=dur))
+                    session.add(Activity(description=description, duration_minutes=dur, group_id=group_options[selected_group]))
                     session.commit()
                 st.session_state.success_toast = True  # Set flag to show toast after rerun
                 st.rerun()  # Force rerun
