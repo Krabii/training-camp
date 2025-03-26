@@ -53,6 +53,12 @@ def fetch_data(model):
         results = session.exec(select(model)).all()
         return pd.DataFrame([row.dict() for row in results])
 
+def fetch_objs(model):
+    with get_session() as session:
+        results = session.exec(select(model)).all()
+        return results
+
+
 # Initialize database
 if __name__ == "__main__":
     create_db_and_tables()

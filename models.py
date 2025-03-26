@@ -1,6 +1,6 @@
 from enum import Enum
 from sqlmodel import Field, Session, SQLModel, Relationship, MetaData, Column, ForeignKey
-from datetime import time, datetime, date
+from datetime import time, datetime, date, timedelta
 from sqlalchemy import JSON
 from typing import List, Optional, Dict
 
@@ -41,6 +41,19 @@ class DayPlanningTimePeriod(SQLModel, table=True):
     closing_time: time
  
 
+class HashMixin:
+    """Generates a hash based on all fields of the model."""
+    def __hash__(self):
+        """Generates a hash based on the primary key (id)."""
+        return hash(self.id) if self.id is not None else super().__hash__()
+
+    def __eq__(self, other):
+        """Ensures that equality is based on id comparison."""
+        if isinstance(other, self.__class__):
+            return self.id == other.id
+        return False
+
+
 # Tagging system: Polymorphic Tag any of the main entities
 # --------------------------------------------------------
 
@@ -53,7 +66,7 @@ class TagLink(SQLModel, table=True):
     entity_type: str = Field(default=None, primary_key=True)  # e.g., "venue", "group", "instructor"
 
 
-class Tag(SQLModel, table=True):
+class Tag(SQLModel, HashMixin, table=True):
     __tablename__ = "tag"
     __table_args__ = {"extend_existing": True}  # Prevent duplicate table errors
 
@@ -64,7 +77,7 @@ class Tag(SQLModel, table=True):
 # Base Entities, Group, Instructor, Venue, Activity
 # -------------------------------------------------
 
-class Instructor(SQLModel, table=True):
+class Instructor(SQLModel, HashMixin, table=True):
     __tablename__ = "instructor"
     __table_args__ = {"extend_existing": True}  # Prevent duplicate table errors
 
@@ -72,7 +85,7 @@ class Instructor(SQLModel, table=True):
     name: str = Field(index=True)
 
 
-class Group(SQLModel, table=True):
+class Group(SQLModel, HashMixin, table=True):
     __tablename__ = "group"
     __table_args__ = {"extend_existing": True}  # Prevent duplicate table errors
     
@@ -85,7 +98,7 @@ class Group(SQLModel, table=True):
     activities: List["Activity"] = Relationship(back_populates="group")
 
 
-class Venue(SQLModel, table=True):
+class Venue(SQLModel, HashMixin, table=True):
     __tablename__ = "venue"
     __table_args__ = {"extend_existing": True}  # Prevent duplicate table errors
     
@@ -93,7 +106,7 @@ class Venue(SQLModel, table=True):
     name: str = Field(index=True)
 
 
-class Activity(SQLModel, table=True):
+class Activity(SQLModel, HashMixin, table=True):
     __tablename__ = "activity"
     __table_args__ = {"extend_existing": True}  # Prevent duplicate table errors
 
@@ -101,11 +114,21 @@ class Activity(SQLModel, table=True):
     
     description: str = Field(...)
     duration_minutes: int = Field(...)
+    step_minutes: int = Field(..., ge=5, le=60)
 
     group_id: int = Field(foreign_key="group.id")  # Foreign Key Reference
     
     # Relationship to Group
     group: Optional[Group] = Relationship(back_populates="activities")
+
+    # @root_validator(pre=True)
+    # def check_multiple_of_5(cls, values):
+    #     step_minutes = values.get("step_minutes")
+        
+    #     if step_minutes % 5 != 0:
+    #         raise ValueError("step_minutes must be a multiple of 5.")
+        
+    #     return values
 
 
 # RESTRICTION & RULES

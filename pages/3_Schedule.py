@@ -1,8 +1,9 @@
 import streamlit as st
 import datetime
-from db import fetch_data, get_session
-from models import DayPlanningTimePeriod, Day
+from db import fetch_data, get_session, fetch_objs
+from models import DayPlanningTimePeriod, Day, Venue, Instructor, Group, Activity
 from datetime import time
+from opt import Instance, TimetableSolver
 
 st.set_page_config(
     page_title="Schedule",
@@ -16,7 +17,15 @@ st.set_page_config(
 st.title(":calendar: Schedule Activities")
 
 if st.sidebar.button("Auto-Plan"):
-    pass
+    instructors = fetch_objs(Instructor)
+    groups = fetch_objs(Group)
+    venues = fetch_objs(Venue)
+    activities = fetch_objs(Activity)
+    opening_hours = fetch_objs(DayPlanningTimePeriod)
+
+    new_instance = Instance(groups=groups, instructors=instructors, venues=venues, activities=activities, opening_times=opening_hours)
+
+    solver = TimetableSolver(instance=new_instance)
 
 df = fetch_data(DayPlanningTimePeriod)
 df["Delete"] = False  # Add a delete column (checkboxes)
