@@ -4,6 +4,8 @@ from db import fetch_data, get_session, fetch_objs
 from models import DayPlanningTimePeriod, Day, Venue, Instructor, Group, Activity
 from datetime import time
 from opt import Instance, TimetableSolver
+from streamlit_calendar import calendar
+
 
 st.set_page_config(
     page_title="Schedule",
@@ -26,6 +28,50 @@ if st.sidebar.button("Auto-Plan"):
     new_instance = Instance(groups=groups, instructors=instructors, venues=venues, activities=activities, opening_times=opening_hours)
 
     solver = TimetableSolver(instance=new_instance)
+    scheduled_activities = solver.build()
+    st.write(scheduled_activities)
+
+calendar_options = {
+    "editable": True,
+    "selectable": True,
+    "firstDay": 1,
+    "headerToolbar": {
+        "left": "today prev,next",
+        "center": "title",
+        "right": "timeGridWeek",
+    },
+    "dayHeaderFormat": { "weekday": "short" },  # 🗓️ Show only "Mon", "Tue", etc.
+    "slotMinTime": "06:00:00",
+    "slotMaxTime": "18:00:00",
+    "initialView": "timeGridWeek"
+}
+calendar_events = [
+    {
+        "title": "Math Class",
+        "daysOfWeek": [1],  # Monday
+        "startTime": "09:30:00",
+        "endTime": "10:30:00",
+    },
+    {
+        "title": "Science Lab",
+        "daysOfWeek": [3],  # Wednesday
+        "startTime": "11:00:00",
+        "endTime": "12:00:00",
+    },
+    {
+        "title": "Sports",
+        "daysOfWeek": [5],  # Friday
+        "startTime": "14:00:00",
+        "endTime": "15:00:00",
+    },
+]
+
+calendar = calendar(
+    events=calendar_events,
+    options=calendar_options,
+    key='calendar', # Assign a widget key to prevent state loss
+    )
+st.write(calendar)
 
 df = fetch_data(DayPlanningTimePeriod)
 df["Delete"] = False  # Add a delete column (checkboxes)

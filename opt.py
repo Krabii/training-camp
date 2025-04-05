@@ -30,6 +30,8 @@ class TimetableSolver:
 
         self.horizon = 2250  # TODO: calculate from opening times in minutes
 
+    def build(self):
+
         self.model = cp_model.CpModel()
 
         self.assigned = {
@@ -109,13 +111,17 @@ class TimetableSolver:
         for i in self.I:
             self.model.add_no_overlap(self.instructor_intervals[a][i] for a in self.A)
 
-
+        self.model.maximize(sum(self.assigned[a] for a in self.A))
+        
         # Solve model
         self.solver = cp_model.CpSolver()
         self.solver.parameters.log_search_progress = True
-
         self.solver.solve(self.model)
 
         # Result
+        activities = {}
         for a in self.A:
-            print(self.solver.Value(self.starts[a]))
+            activities[a] = {'assigned': self.solver.Value(self.assigned[a]), "start": self.solver.Value(self.starts[a]), "duration": self.activities[a].duration_minutes}
+            print(self.solver.Value(self.starts[a]), self.solver.Value(self.assigned[a]))
+
+        return activities
