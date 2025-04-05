@@ -82,6 +82,7 @@ class TimetableSolver:
         }
 
         self.group_intervals = {
+            # We need a separate intervals for each group
             a: self.model.new_optional_fixed_size_interval_var(
                     self.starts[a],
                     self.activities[a].duration_minutes,

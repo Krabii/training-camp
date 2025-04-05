@@ -8,7 +8,7 @@ from streamlit_calendar import calendar
 
 
 st.set_page_config(
-    page_title="Schedule",
+    page_title="Scheduling Parameters",
     page_icon=":pencil:",
     initial_sidebar_state="expanded",
     menu_items={
@@ -16,7 +16,7 @@ st.set_page_config(
     }
 )
 
-st.title(":calendar: Schedule Activities")
+st.title(":calendar: Scheduling Parameters")
 
 if st.sidebar.button("Auto-Plan"):
     instructors = fetch_objs(Instructor)
@@ -31,48 +31,7 @@ if st.sidebar.button("Auto-Plan"):
     scheduled_activities = solver.build()
     st.write(scheduled_activities)
 
-calendar_options = {
-    "editable": True,
-    "selectable": True,
-    "firstDay": 1,
-    "headerToolbar": {
-        "left": "today prev,next",
-        "center": "title",
-        "right": "timeGridWeek",
-    },
-    "dayHeaderFormat": { "weekday": "short" },  # 🗓️ Show only "Mon", "Tue", etc.
-    "slotMinTime": "06:00:00",
-    "slotMaxTime": "18:00:00",
-    "initialView": "timeGridWeek"
-}
-calendar_events = [
-    {
-        "title": "Math Class",
-        "daysOfWeek": [1],  # Monday
-        "startTime": "09:30:00",
-        "endTime": "10:30:00",
-    },
-    {
-        "title": "Science Lab",
-        "daysOfWeek": [3],  # Wednesday
-        "startTime": "11:00:00",
-        "endTime": "12:00:00",
-    },
-    {
-        "title": "Sports",
-        "daysOfWeek": [5],  # Friday
-        "startTime": "14:00:00",
-        "endTime": "15:00:00",
-    },
-]
-
-calendar = calendar(
-    events=calendar_events,
-    options=calendar_options,
-    key='calendar', # Assign a widget key to prevent state loss
-    )
-st.write(calendar)
-
+st.write("## Define Scheduling Times")
 df = fetch_data(DayPlanningTimePeriod)
 df["Delete"] = False  # Add a delete column (checkboxes)
 edited_df = st.data_editor(
@@ -98,6 +57,59 @@ def add_day_form():
                 session.commit()
             st.session_state.success_toast = True  # Set flag to show toast after rerun
             st.rerun()  # Force rerun
+
+# Constraints Section
+st.header("⚡ Define Constraints")
+st.markdown(
+    """
+    Constraints are **strict limitations** that must be respected during the scheduling process. These help avoid conflicts and ensure the timetable follows hard rules.
+
+    **Examples:**
+    - Set the **earliest start time for an activity to 8:00 AM**.
+    - Exclude **specific venues for a particular group**.
+    - Limit **instructors to a maximum of 6 teaching hours per day**.
+    """
+)
+
+# Rules Section
+st.header("⚖️ Rules")
+st.markdown(
+    """
+    Rules are **specific conditions** that help guide the scheduling process. These can be **mandatory** or **optional goals** with different priority levels.
+
+    **Examples:**
+    - Ensure **a single instructor is assigned to a group for an entire course**.
+    - Restrict **sports training to outdoor facilities after 4:00 PM**.
+    - Allow **only certified labs for chemistry experiments**.
+    """
+)
+
+# Logic Section
+st.header("🧠 Logic")
+st.markdown(
+    """
+    Logic handles **sequence-based relationships** between activities. These define **dependencies** and **ordering conditions** that must be followed.
+
+    **Examples:**
+    - If **Math I is scheduled on Monday, Math II must follow on the same day**.
+    - **Lab I must be scheduled before Lab II**.
+    - If an **exam is held in the morning, a review session should be scheduled the previous day**.
+    """
+)
+
+# Priorities Section
+st.header("🎯 Priorities")
+st.markdown(
+    """
+    Priorities allow you to define **goal-based preferences** with **high**, **medium**, or **low importance**. The system will aim to meet these preferences while minimizing penalties for violations.
+
+    **Examples:**
+    - **High Priority:** Schedule **popular classes in larger venues**.
+    - **Medium Priority:** Allocate **the best-equipped room for science classes**.
+    - **Low Priority:** Assign **the same instructor for consecutive sessions to avoid transitions**.
+    """
+)
+
 
 # Trigger Add New Venue modal when the button is clicked
 if st.button("Add Planning Time Period"):
