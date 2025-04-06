@@ -28,7 +28,7 @@ class TimetableSolver:
         self.V = [v.id for v in instance.venues]
         self.A = [a.id for a in instance.activities]
 
-        self.horizon = 2250  # TODO: calculate from opening times in minutes
+        self.horizon = 10080  # minutes in a full week
 
     def build(self):
 
