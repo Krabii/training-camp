@@ -1,7 +1,9 @@
 from ortools.sat.python import cp_model
-from models import Group, Instructor, Venue, Activity, DayPlanningTimePeriod, Day
+from models import Group, Instructor, Venue, Activity, DayPlanningTimePeriod, Day, ScheduledEvent, minutes_to_day_time, day_time_to_minutes
 from typing import List
 from dataclasses import dataclass
+
+
 
 @dataclass
 class Instance:
@@ -19,14 +21,21 @@ class TimetableSolver:
         self.groups = {i.id: i for i in instance.groups}
         self.instructors = {i.id: i for i in instance.instructors}
         self.venues = {i.id: i for i in instance.venues}
-        self.activities = {i.id: i for i in instance.activities}
+        self.activities = {str(i.id) + '_' + str(x): i for i in instance.activities for x in range(1, i.num_sessions + 1)}
         self.opening_times = {i.id: i for i in instance.opening_times}
+
+        self.valid_intervals = []
+        for o in self.opening_times:
+            window = self.opening_times[o]
+            from_minute = day_time_to_minutes(window.day.value, str(window.opening_time))
+            to_minute = day_time_to_minutes(window.day.value, str(window.closing_time))
+            self.valid_intervals.append((from_minute, to_minute))
 
         # Sets
         self.G = [g.id for g in instance.groups]
         self.I = [i.id for i in instance.instructors]
         self.V = [v.id for v in instance.venues]
-        self.A = [a.id for a in instance.activities]
+        self.A = list(self.activities.keys())
 
         self.horizon = 10080  # minutes in a full week
 
@@ -49,9 +58,17 @@ class TimetableSolver:
         }
 
         self.starts = {
-            a: self.model.new_int_var(0, self.horizon, f"{a}")
+            a: self.model.new_int_var_from_domain(cp_model.Domain.FromIntervals(self.valid_intervals),f"{a}")
             for a in self.A
         }
+
+        self.ends = {
+            a: self.model.new_int_var_from_domain(cp_model.Domain.FromIntervals(self.valid_intervals),f"{a}")
+            for a in self.A
+        }
+
+        for a in self.A:
+            self.model.add(self.ends[a] == self.starts[a] + self.activities[a].duration_minutes)
 
         self.venue_intervals = {
             a: {
@@ -112,6 +129,9 @@ class TimetableSolver:
         for i in self.I:
             self.model.add_no_overlap(self.instructor_intervals[a][i] for a in self.A)
 
+        # TODO: DO NOT USE non scheduling windows, prohibided times
+        
+        # OBJECTIVES
         self.model.maximize(sum(self.assigned[a] for a in self.A))
         
         # Solve model
@@ -119,10 +139,22 @@ class TimetableSolver:
         self.solver.parameters.log_search_progress = True
         self.solver.solve(self.model)
 
-        # Result
-        activities = {}
+        # Results
+        scheduled_events = []
         for a in self.A:
-            activities[a] = {'assigned': self.solver.Value(self.assigned[a]), "start": self.solver.Value(self.starts[a]), "duration": self.activities[a].duration_minutes}
-            print(self.solver.Value(self.starts[a]), self.solver.Value(self.assigned[a]))
-
-        return activities
+            # instructor_id = self.instructor_vars[a][i]
+            # venue_id = self.venue_vars[a][i]
+            # Calculate Start, End
+            start_day, start_time = minutes_to_day_time(self.solver.value(self.starts[a]))
+            end_day, end_time = minutes_to_day_time(self.solver.value(self.starts[a]) + self.activities[a].duration_minutes)
+            scheduled_events.append(ScheduledEvent(
+                title=self.activities[a].description,
+                days_of_week=start_day,
+                start_time=start_time,
+                end_time=end_time,
+                activity_id=self.activities[a].id,
+                group_id=self.activities[a].group_id,
+                instructor_id=None,
+                venue_id=None
+                ))
+        return scheduled_events, self.model.Proto().SerializeToString()

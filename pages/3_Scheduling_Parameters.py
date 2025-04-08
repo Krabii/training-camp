@@ -1,10 +1,11 @@
 import streamlit as st
 import datetime
 from db import fetch_data, get_session, fetch_objs
-from models import DayPlanningTimePeriod, Day, Venue, Instructor, Group, Activity
+from models import DayPlanningTimePeriod, Day, Venue, Instructor, Group, Activity, Schedule, minutes_to_day_time
 from datetime import time
 from opt import Instance, TimetableSolver
 from streamlit_calendar import calendar
+import json
 
 
 st.set_page_config(
@@ -28,8 +29,13 @@ if st.sidebar.button("Auto-Plan"):
     new_instance = Instance(groups=groups, instructors=instructors, venues=venues, activities=activities, opening_times=opening_hours)
 
     solver = TimetableSolver(instance=new_instance)
-    scheduled_activities = solver.build()
-    st.write(scheduled_activities)
+    scheduled_activities, proto = solver.build()
+    with get_session() as session:
+        session.add(Schedule(
+            proto=proto,
+            result=json.dumps({i: e.to_dict() for i, e in enumerate(scheduled_activities)})
+            ))
+        session.commit()
 
 st.write("## Define Scheduling Times")
 df = fetch_data(DayPlanningTimePeriod)

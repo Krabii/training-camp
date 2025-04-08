@@ -316,10 +316,11 @@ with tab4:
         column_config={
             'name': "Name",
             'duration_minutes': "Duration (min)",
+            'num_sessions': "Number of Sessions",
             'Group': "Group",
             'step_minutes': "Step (min)"
         },
-        column_order=['description', 'duration_minutes', 'step_minutes','Group', "Delete"]
+        column_order=['description', 'duration_minutes', 'num_sessions','step_minutes', 'Group', "Delete"]
     )
 
     # 📌 Save Changes
@@ -333,6 +334,7 @@ with tab4:
                 if activity:
                     activity.description = row["description"]
                     activity.duration_minutes = row["duration_minutes"]
+                    activity.num_sessions = row["num_sessions"]
                     activity.group_id = group_options.get(row["Group"])
                     activity.step_minutes = row["step_minutes"]
             session.commit()
@@ -358,11 +360,12 @@ with tab4:
             description = st.text_input("Activity Description")
             dur = st.number_input("Activity Duration (minutes)", min_value=0, step=5, format="%d")
             selected_group = st.selectbox("Select Group", options=group_options.keys())  # Show group names
+            num_sessions = st.number_input("Number of Sessions", min_value=1, max_value=60, format="%d")
             step = st.number_input("Activity Duration (minutes)", min_value=5, max_value=60, step=5, format="%d")
             submitted = st.form_submit_button("Add Activity")
             if submitted and description:
                 with get_session() as session:
-                    session.add(Activity(description=description, duration_minutes=dur, step_minutes=step, group_id=group_options[selected_group]))
+                    session.add(Activity(description=description, duration_minutes=dur, num_sessions=num_sessions, step_minutes=step, group_id=group_options[selected_group]))
                     session.commit()
                 st.session_state.success_toast = True  # Set flag to show toast after rerun
                 st.rerun()  # Force rerun

@@ -1,4 +1,6 @@
+from dataclasses import dataclass
 from enum import Enum
+import json
 from sqlmodel import Field, Session, SQLModel, Relationship, MetaData, Column, ForeignKey
 from datetime import time, datetime, date, timedelta
 from sqlalchemy import JSON
@@ -114,6 +116,7 @@ class Activity(SQLModel, HashMixin, table=True):
     
     description: str = Field(...)
     duration_minutes: int = Field(...)
+    num_sessions: int = Field(..., description="How many sessions should be planned.")
     step_minutes: int = Field(..., ge=5, le=60)
 
     group_id: int = Field(foreign_key="group.id")  # Foreign Key Reference
@@ -167,3 +170,73 @@ class Restriction(SQLModel, table=True):
         """Retrieve ActivityRestriction from JSON."""
         return ActivityRestriction(**json.loads(self.restriction))
 
+@dataclass
+class ScheduledEvent():
+    title: str
+    days_of_week: int
+    start_time: time
+    end_time: time
+    activity_id: int
+    group_id: int
+    instructor_id: int
+    venue_id: int
+
+    def to_dict(self):
+        return {
+            "title": self.title,
+            "days_of_week": self.days_of_week,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "activity_id": self.activity_id,
+            "group_id": self.group_id,
+            "instructor_id": self.instructor_id,
+            "venue_id": self.venue_id,
+        }
+
+
+class Schedule(SQLModel, table=True):
+    __tablename__ = "schedule"
+    __table_args__ = {"extend_existing": True}
+
+    id: int | None = Field(default=None, primary_key=True)
+    proto: Optional[bytes] = Field(default=None, description="Serialized proto or metadata identifier")
+    result: str = Field(default=None, description="Optimization result as JSON")
+    created: datetime = Field(default_factory=datetime.utcnow)
+
+
+def minutes_to_day_time(total_minutes):
+    days_passed = total_minutes // 1440  # 1440 minutes in a day
+    day_index = (days_passed % 7) + 1
+    
+    minutes_remaining = total_minutes % 1440
+    hours = minutes_remaining // 60
+    minutes = minutes_remaining % 60
+    
+    return day_index, f"{hours:02d}:{minutes:02d}"
+
+def day_time_to_minutes(day_str, time_str):
+    # Map Spanish day abbreviations to indices (Mon = 0)
+    day_map = {
+        "mon": 0,  # Monday
+        "tue": 1,  # Tuesday
+        "wed": 2,  # Wednesday
+        "thu": 3,  # Thursday
+        "fri": 4,  # Friday
+        "sat": 5,  # Saturday
+        "sun": 6   # Sunday
+    }
+
+    day_index = day_map.get(day_str)
+    if day_index is None:
+        raise ValueError("Invalid day string")
+
+    # Clean and split time string
+    parts = time_str.strip().split(":")
+    if len(parts) < 2:
+        raise ValueError(f"Invalid time format: {time_str}")
+    
+    hours = int(parts[0])
+    minutes = int(parts[1])
+
+    total_minutes = day_index * 1440 + hours * 60 + minutes
+    return total_minutes
